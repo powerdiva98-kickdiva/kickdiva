@@ -1,7 +1,7 @@
 [
   {
     "version" : "1.2",
-    "fixmode" : "false",
+    "fixmode" : "true",
     "message" : "التطبيق في وضع الصيانة",
     "link" : "https://www.google.com",
     "update_message" : "يوجد تحديث جديد 1.2 يجب عليك تحميله ل استخدام التطبيق"
