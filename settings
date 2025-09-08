@@ -1,8 +1,8 @@
 [
   {
     "version" : "1.3",
-    "fixmode" : "false",
-    "message" : "التطبيق في وضع الصيانة",
+    "fixmode" : "true",
+    "message" : "التطبيق مغلق حاليا",
     "link" : "https://www.google.com",
     "update_message" : "يوجد تحديث جديد 1.3 يجب عليك تحميله ل استخدام التطبيق",
     "admin_message" : "عندك فكرة حلوة للتطبيق ؟ كلمني تيليجرام @POWERDIVA98"
