@@ -2,8 +2,8 @@
   {
     "version" : "1.0",
     "fixmode" : "false",
-    "message" : "Application in maintenance mode",
-    "link" : "https://www.mediafire.com/file/zksrp01bx4350a5/kick.apk/file",
+    "fixmode_txt" : "Application in maintenance mode",
+    "update_link" : "https://www.mediafire.com/file/zksrp01bx4350a5/kick.apk/file",
     "update_message" : "New update available You must download the update to use the app",
     "admin_message"  : "Did you like the application 😁 don't forget to share it with your friends"
   }
