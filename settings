@@ -2,9 +2,9 @@
   {
     "version" : "1.0",
     "fixmode" : "false",
-    "message" : "التطبيق في وضع الصيانة يا برو",
+    "message" : "Application in maintenance mode",
     "link" : "https://www.mediafire.com/file/zksrp01bx4350a5/kick.apk/file",
-    "update_message" : "نعتذر وضع الصيانة استغرق وقت طويل و التطبيق لم يكن يدعم جميع الأجهزة .. تعويضات للمستخدمين ها هي نسخة من التطبيق بدون اعلانات لمدة أسبوعين تدعم جميع الأجهزة .. يجب عليك حذف التطبيق القديم اولاً",
-    "admin_message"  : "هل أعجبك التطبيق 😁 ارجوا منك تقدير تعبي و مشاركته مع الجميع 😊♥️"
+    "update_message" : "New update available You must download the update to use the app",
+    "admin_message"  : "Did you like the application 😁 don't forget to share it with your friends"
   }
 ]
