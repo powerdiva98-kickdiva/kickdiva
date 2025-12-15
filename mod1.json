@@ -654,6 +654,8 @@ try{
 }catch(error){
     console.error('A critical error occurred in KickChatTools:', error);
 }})();",
-"status":"open"
+"status":"open",
+"status_lock_msg_ar":"عذرا السيرفر مغلق حاليآ",
+"status_lock_msg_en":"Sorry the server is currently closed"
   }
 ]
