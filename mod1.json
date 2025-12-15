@@ -654,6 +654,6 @@ try{
 }catch(error){
     console.error('A critical error occurred in KickChatTools:', error);
 }})();",
-"info":"pd98"
+"status":"open"
   }
 ]
