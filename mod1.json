@@ -1,1116 +1,148 @@
-(function() {
-    'use strict';
-    
-    // --- إعدادات الإصدار ---
-    // الإصدار 1.3: إضافة زر الإيقاف التلقائي عند إغلاق البث (للحساب الأساسي والبوتات)
-    const SCRIPT_VERSION = '1.3'; 
-    const VERSION_TAG = `KICK_TOOLS_V${SCRIPT_VERSION}_AUTOSTOP`;
-
-    if (window.KickChatTools_Loaded) {
-        return;
+{
+  "moduleName": "Channel Management Module",
+  "version": "1.0.0",
+  "description": "Module for managing bot channels with proper verification for bot accounts",
+  "author": "powerdiva98-kickdiva",
+  "config": {
+    "enableChannelManagement": true,
+    "verifyBotAccounts": true,
+    "allowedBotRoles": ["administrator", "moderator", "bot"]
+  },
+  "features": {
+    "channelManagement": {
+      "enabled": true,
+      "createChannel": {
+        "enabled": true,
+        "requireBotVerification": true,
+        "requireAdminPermission": true
+      },
+      "deleteChannel": {
+        "enabled": true,
+        "requireBotVerification": true,
+        "requireAdminPermission": true
+      },
+      "updateChannelSettings": {
+        "enabled": true,
+        "requireBotVerification": true,
+        "requireModeratorPermission": true
+      }
+    },
+    "botVerification": {
+      "enabled": true,
+      "verificationMethods": [
+        "checkBotToken",
+        "validateBotPermissions",
+        "verifyBotAccount",
+        "checkBotRateLimit"
+      ],
+      "strictMode": true,
+      "verificationTimeout": 5000
     }
-    window.KickChatTools_Loaded = true;
-
-    try {
-        const oF = window.fetch;
-        let abC = null; 
-        let activeBots = {}; 
-        let streamMonitorInt = null; // متغير لمراقبة البث
-
-        // --- Translations / الترجمات ---
-        const tr = {
-            en: {
-                saveCurrentScroll: 'Save Configuration',
-                enterNamePlaceholder: 'Preset Name...',
-                saveScrollBtn: 'Save Preset',
-                scrollSavedSuccess: "Preset saved: '{name}'",
-                confirmDeletion: 'Remove Item?',
-                confirmDeleteMsg: "Are you sure you want to remove '{name}'?",
-                yes: 'Yes, Remove',
-                no: 'Cancel',
-                scrollLoaded: "Configuration Loaded.",
-                noSavedScrolls: 'No saved presets found.',
-                load: 'Load',
-                delete: 'Delete',
-                interactionTab: 'Main',
-                scrollsTab: 'Library',
-                aiTab: 'AI Chat', 
-                accountsTab: 'Accounts', 
-                aiChatPlaceholder: 'Chat freely... Use * to add lists (e.g. *20 Jokes)',
-                aiSendBtn: 'SEND',
-                aiAdded: '✅ Added {count} items to the list successfully!',
-                enterMessageLabel: 'MESSAGE CONTENT',
-                enterMessageHint: '(1 line = 1 msg)', 
-                countLabel: 'COUNT',
-                delayLabel: 'DELAY', 
-                unitSec: 'sec',
-                unitMs: 'ms',
-                infiniteSendLabel: 'Infinite Loop',
-                spamModeLabel: 'TURBO MODE', 
-                autoStopLabel: 'Auto-Stop if Offline', // NEW
-                streamEndedMsg: 'Stream Ended. All actions stopped.', // NEW
-                warningTitle: '⚠️ HIGH FREQUENCY WARNING',
-                warningBody: 'Activating <b>Turbo Mode</b> bypasses client-side delay protections (1ms).<br>Ensure you have permission from the streamer.',
-                warningBtn: 'I UNDERSTAND',
-                savedScrollsTitle: 'Saved Presets',
-                save: 'New Preset',
-                close: 'Close', 
-                start: 'START',
-                stop: 'STOP',
-                enterStreamFirst: 'You must enter a channel first.',
-                writeMessageHint: 'Message field cannot be empty.',
-                loginErr: 'You must be logged in to chat.', 
-                languageToggle: 'العربية', 
-                widgetTitle: 'Tools',
-                aiTyping: 'AI is typing...',
-                whatsNewBtn: 'What\'s New?',
-                
-                // --- Account Manager Strings ---
-                copyCurrentToken: 'Copy Current Token',
-                tokenCopied: 'Token Copied to Clipboard!',
-                tokenNotFound: 'Chat first to capture token.',
-                addAccountBtn: 'Add Account',
-                accNamePlace: 'Bot Name / ID',
-                accTokenPlace: 'Bearer Token (ey...)',
-                accSetupTitle: 'Bot Settings: {name}',
-                accSaveConfig: 'Save Bot Config',
-                startSelected: 'START SELECTED',
-                stopSelected: 'STOP SELECTED',
-                noAccounts: 'No accounts added.',
-                selectCol: 'Sel',
-                nameCol: 'Name',
-                actionsCol: 'Config',
-                statusRunning: 'Running...',
-                statusStopped: 'Stopped',
-                howToUseBtn: 'How to Use?',
-                accAddedHint: 'Account Added! Click the Pen ✏️ to configure messages.',
-
-                // --- Update Summary ---
-                updateTitle: `✨ Update V${SCRIPT_VERSION}`,
-                updateBody: '<b>Auto-Stop Feature:</b><br>Added a checkbox to stop EVERYTHING (Main + Bots) if the streamer ends the stream.<br><br><b>Locations:</b> Checkbox is located below "Infinite Loop".',
-                gotIt: 'Awesome!',
-                
-                // --- How to Use Modal ---
-                howToUseTitle: 'How to Use Multi-Accounts',
-                howToUseBody: `
-                    1. Create as many Kick accounts as you want.<br>
-                    2. Copy the <b>Token</b> for each account and save them in a notepad.<br>
-                    3. Log in to your main account here.<br>
-                    4. Click <b>Add Account</b>, enter a name and paste the Token.<br>
-                    5. <b>Important:</b> The added account MUST follow the streamer to be able to chat.<br>
-                    6. Click the <b>Pen Icon (✏️)</b> to set messages for each bot.
-                `
-            },
-            ar: {
-                saveCurrentScroll: 'حفظ الإعدادات',
-                enterNamePlaceholder: 'اسم الإعداد...',
-                saveScrollBtn: 'حفظ الإعداد',
-                scrollSavedSuccess: "تم الحفظ: '{name}'",
-                confirmDeletion: 'حذف العنصر؟',
-                confirmDeleteMsg: "هل أنت متأكد من حذف '{name}'؟",
-                yes: 'نعم، احذف',
-                no: 'إلغاء',
-                scrollLoaded: "تم تحميل الإعداد بنجاح.",
-                noSavedScrolls: 'لا توجد إعدادات محفوظة.',
-                load: 'تفعيل',
-                delete: 'حذف',
-                interactionTab: 'الرئيسية',
-                scrollsTab: 'المكتبة',
-                aiTab: 'الذكاء', 
-                accountsTab: 'الحسابات', 
-                aiChatPlaceholder: 'دردش بحرية... لإضافة قائمة استخدم * (مثال: *20 نكتة)',
-                aiSendBtn: 'إرسال',
-                aiAdded: '✅ تم إضافة {count} سطر إلى القائمة بنجاح!',
-                enterMessageLabel: 'محتوى الرسالة',
-                enterMessageHint: '(كل سطر = رسالة)',
-                countLabel: 'العدد',
-                delayLabel: 'الفاصل الزمني', 
-                unitSec: 'ث',
-                unitMs: 'ملي',
-                infiniteSendLabel: 'تكرار لا نهائي',
-                spamModeLabel: 'وضع التيربو (سريع)',
-                autoStopLabel: 'إيقاف عند نهاية البث', // NEW
-                streamEndedMsg: 'انتهى البث. تم إيقاف جميع العمليات.', // NEW 
-                warningTitle: '⚠️ تحذير السرعة العالية',
-                warningBody: 'تفعيل <b>وضع التيربو</b> يتجاوز قيود الوقت الطبيعية (1ms).<br>تأكد من موافقة صاحب القناة لتجنب الحظر.',
-                warningBtn: 'فهمت ذلك',
-                savedScrollsTitle: 'الإعدادات المحفوظة',
-                save: 'حفظ جديد',
-                close: 'إغلاق', 
-                start: 'تشغيل',
-                stop: 'إيقاف',
-                enterStreamFirst: 'يجب الدخول إلى قناة وبث أولاً.',
-                writeMessageHint: 'لا يمكن ترك حقل الرسالة فارغاً.',
-                loginErr: 'يرجى تسجيل الدخول لحسابك أولاً.', 
-                languageToggle: 'English',
-                widgetTitle: 'أدوات',
-                aiTyping: 'جاري الكتابة...',
-                whatsNewBtn: 'ما الجديد؟',
-
-                // --- Account Manager Strings ---
-                copyCurrentToken: 'نسخ التوكن الحالي',
-                tokenCopied: 'تم نسخ التوكن بنجاح!',
-                tokenNotFound: 'تفاعل بالشات أولاً لالتقاط التوكن.',
-                addAccountBtn: 'إضافة حساب',
-                accNamePlace: 'اسم البوت / اللقب',
-                accTokenPlace: 'كود التوكن (Bearer Token)',
-                accSetupTitle: 'إعدادات البوت: {name}',
-                accSaveConfig: 'حفظ إعدادات البوت',
-                startSelected: 'تشغيل المحدد',
-                stopSelected: 'إيقاف المحدد',
-                noAccounts: 'لم يتم إضافة حسابات.',
-                selectCol: 'تحديد',
-                nameCol: 'الاسم',
-                actionsCol: 'تعديل',
-                statusRunning: 'يعمل...',
-                statusStopped: 'متوقف',
-                howToUseBtn: 'كيفية الاستخدام؟',
-                accAddedHint: 'تم إضافة الحساب! اضغط على القلم ✏️ لإضافة الرسائل.',
-
-                // --- Update Summary ---
-                updateTitle: `✨ تحديث جديد V${SCRIPT_VERSION}`,
-                updateBody: '<b>جديد: ميزة الإيقاف التلقائي عند انقطاع البث!</b><br>دلوقتي فيه زر جديد في القائمة الرئيسية (تحت التكرار اللانهائي).<br><br>لو فعلت الزر ده، والستريمر قفل البث وأنت مش موجود، السكربت هيوقف إرسال الرسايل من حسابك ومن <b>كل البوتات</b> فوراً.',
-                gotIt: 'تمام، فهمت!',
-
-                // --- How to Use Modal ---
-                howToUseTitle: 'كيفية استخدام الحسابات المتعددة',
-                howToUseBody: `
-                    <ul style="padding-inline-start: 20px; margin:0; line-height:1.8;">
-                        <li>تقدر تتفاعل بـ 10 حسابات أو أكثر في نفس الوقت.</li>
-                        <li>كل اللي عليك تعمله إنك تعمل حسابات جديدة (أي عدد تريده).</li>
-                        <li>انسخ التوكنات (Tokens) الخاصة بالحسابات دي واحفظها في ملف خارجي (Notepad).</li>
-                        <li>ادخل هنا بحسابك الأساسي، وروح لقسم "الحسابات" واضغط "إضافة حساب".</li>
-                        <li>اكتب أي اسم للحساب، وحط التوكن بتاعه.</li>
-                        <li><b>ملاحظة مهمة:</b> لازم الحساب اللي ضيفته يكون عامل متابعة (Follow) للستريمر اللي هتشغل البوت عنده عشان يقدر يكتب في الشات.</li>
-                        <li>بعد الإضافة، اضغط علامة <b>القلم (✏️)</b> عشان تظبط الرسائل والوقت لكل حساب لوحده.</li>
-                    </ul>
-                `
-            }
-        };
-
-        let cL = localStorage.getItem('kickToolsLang') || null;
-        let cRI = {}, sP = { active: false, cleanup: () => {} };
-        let sS = JSON.parse(localStorage.getItem('kickNarutoScrolls')) || [];
-        let accList = JSON.parse(localStorage.getItem('kickMultiAccounts')) || [];
-        
-        const TA = { font_url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap' };
-
-        const gT = (k, p = {}) => {
-            let t = (tr[cL] || tr.en)[k] || k;
-            for (const x in p) t = t.replace(`{${x}}`, p[x]);
-            return t;
-        };
-
-        function sKN(t) {
-            let c = document.getElementById('kick-toast-container');
-            if (!c) { 
-                c = document.createElement('div'); 
-                c.id = 'kick-toast-container'; 
-                c.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:100002;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;'; 
-                document.body.appendChild(c) 
-            }
-            const T = document.createElement('div');
-            T.style.cssText = `background: #191B1F; border: 1px solid #2D3035; color: #FFFFFF; font-family: 'Inter', sans-serif; font-weight: 600; padding: 10px 24px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 13px; opacity: 0; transform: translateY(10px); transition: all 0.2s ease-out; display: flex; align-items: center; gap: 8px; border-left: 3px solid #53FC18;`;
-            T.innerHTML = `<span>${t}</span>`;
-            c.appendChild(T);
-            requestAnimationFrame(() => { T.style.opacity = '1'; T.style.transform = 'translateY(0)' });
-            setTimeout(() => { T.style.opacity = '0'; T.style.transform = 'translateY(5px)'; setTimeout(()=>T.remove(), 200); }, 4000)
-        }
-
-        // --- MONITOR STREAM STATUS LOGIC (New) ---
-        function startStreamMonitor() {
-            if (streamMonitorInt) clearInterval(streamMonitorInt);
-            
-            const monitorFunc = async () => {
-                const slug = window.location.pathname.split('/')[1];
-                if (!slug || slug.includes('/')) return;
-
-                try {
-                    const r = await oF(`https://kick.com/api/v2/channels/${slug}`);
-                    const d = await r.json();
-                    
-                    // If livestream is null, stream is offline
-                    if (!d.livestream) {
-                         emergencyStopAll();
-                    }
-                } catch(e) {}
-            };
-            
-            // Check immediately, then every 10 seconds
-            monitorFunc();
-            streamMonitorInt = setInterval(monitorFunc, 10000); 
-        }
-
-        function stopStreamMonitor() {
-            if (streamMonitorInt) {
-                clearInterval(streamMonitorInt);
-                streamMonitorInt = null;
-            }
-        }
-
-        function emergencyStopAll() {
-            stopStreamMonitor();
-            
-            // 1. Stop Main Sender
-            if (sP.active) {
-                sCP(); 
-            }
-            
-            // 2. Stop All Bots
-            let anyBotRunning = false;
-            const btn = document.getElementById('mass-start-btn');
-            
-            Object.keys(activeBots).forEach(id => {
-                stopBotAccount(parseInt(id));
-                anyBotRunning = true;
-            });
-            
-            if (btn && btn.dataset.running === 'true') {
-                btn.dataset.running = 'false';
-                btn.textContent = gT('startSelected');
-                btn.classList.remove('danger');
-                btn.classList.add('primary');
-            }
-
-            sKN(gT('streamEndedMsg'));
-        }
-
-        // --- AI LOGIC ---
-        async function fetchAIContent(userMessage) {
-            const hasAsterisk = userMessage.includes('*');
-            const numberMatch = userMessage.match(/(\d+)/);
-            const isGenerationRequest = hasAsterisk || (numberMatch !== null && userMessage.toLowerCase().includes('list'));
-            let finalCount = 10;
-            if (numberMatch && (hasAsterisk || isGenerationRequest)) finalCount = parseInt(numberMatch[0]);
-
-            let systemPrompt = "";
-            let apiPrompt = "";
-
-            if (hasAsterisk) { 
-                const topic = userMessage.replace(/\*/g, '').trim();
-                systemPrompt = `You are a helper. The user wants a LIST added to their broadcast tool. 
-                1. Detect the language of this topic: "${topic}".
-                2. Generate exactly ${finalCount} short unique lines about that topic in THAT SAME LANGUAGE.
-                3. Format: Pure text lines only. No numbers. End each line with an emoji.`;
-                apiPrompt = `${systemPrompt}`;
-            } else {
-                systemPrompt = `You are a witty, friendly AI assistant inside a stream tool.
-                **IMPORTANT RULE:** Reply in the EXACT SAME LANGUAGE the user is speaking.
-                - If User speaks English -> You speak English.
-                - If User speaks Arabic -> You speak Arabic.
-                - Keep it brief, casual, and use emojis.`;
-                apiPrompt = `${systemPrompt}\n\nUSER MESSAGE: ${userMessage}`;
-            }
-
-            const seed = Math.floor(Math.random() * 999999);
-            const encoded = encodeURIComponent(apiPrompt);
-            const apiUrl = `https://text.pollinations.ai/${encoded}?model=openai&seed=${seed}`;
-
-            try {
-                const response = await oF(apiUrl);
-                if (!response.ok) throw new Error("Busy");
-                const text = await response.text();
-                return { success: true, text: text.trim(), isList: hasAsterisk, requestedCount: finalCount };
-            } catch (e) { return { success: false }; }
-        }
-        
-        function addChatBubble(text, type) {
-            const chatBox = document.getElementById('ai-chat-history');
-            if(!chatBox) return;
-            const bubble = document.createElement('div');
-            const align = type === 'user' ? 'align-self: flex-end; background: #32353A; color:white;' : 'align-self: flex-start; background: #53FC18; color: black;';
-            bubble.style.cssText = `max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 13px; line-height: 1.4; margin-bottom: 8px; ${align}`;
-            if(type === 'user') bubble.style.borderBottomRightRadius = '0'; else bubble.style.borderBottomLeftRadius = '0';
-            bubble.innerText = text;
-            chatBox.appendChild(bubble);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        // --- Changelog ---
-        function checkAndShowChangelog(force = false) {
-            if (!cL) return;
-            const lastSeen = localStorage.getItem('kickChatTools_LastVersion');
-            if (lastSeen !== VERSION_TAG || force === true) {
-                const c = `
-                    <div style="text-align:center;">
-                        <div style="font-size:32px;margin-bottom:12px;">📢</div>
-                        <h4 style='color:#fff;margin:0 0 12px 0;font-size:16px;font-weight:700;'>${gT('updateTitle')}</h4>
-                        <p style='color:#ccc;font-size:13px;line-height:1.6;margin:0 0 20px 0;text-align:${cL==='ar'?'right':'left'};background:#24272C;padding:12px;border-radius:6px;'>
-                            ${gT('updateBody')}
-                        </p>
-                        <button id='changelog-ok-btn' class='kick-ui-btn primary'>${gT('gotIt')}</button>
-                    </div>
-                `;
-                const { overlay } = cM(c, true); 
-                document.getElementById('changelog-ok-btn').onclick = () => {
-                    localStorage.setItem('kickChatTools_LastVersion', VERSION_TAG);
-                    overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 200);
-                };
-            }
-        }
-
-        function sRWM() {
-            const content = `<div style="text-align:left;"><div style="color:#53FC18; font-size:24px; margin-bottom:15px;">⚠️</div><h2 style="margin:0 0 10px; font-size:16px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:0.5px;">${gT('warningTitle')}</h2><p style="font-size:13px; line-height:1.5; color:#A8A8A8; margin-bottom:24px;">${gT('warningBody')}</p><div style="display:flex; justify-content:flex-end;"><button id="red-modal-confirm" style="background: #D93025; color: white; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; text-transform: uppercase; font-family: 'Inter', sans-serif; transition: background 0.2s;">${gT('warningBtn')}</button></div></div>`;
-            const { overlay } = cM(content, false);
-            document.getElementById('red-modal-confirm').onclick = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 200); };
-        }
-
-        async function fCI(s = true) {
-            const n = window.location.pathname.split('/')[1];
-            if (!n || n.includes('/')) return false;
-            try {
-                const r = await oF(`https://kick.com/api/v2/channels/${n}`), d = await r.json();
-                if (d?.chatroom?.id) { cRI = d.chatroom; return true }
-            } catch (e) {}
-            return false
-        }
-
-        // --- SEND MESSAGE LOGIC ---
-        async function sM(m, specificToken = null) {
-            const token = specificToken || window.bearerTokenGlobal;
-            if (!token || !cRI.id) { if (!await fCI(true)) return; }
-            if (!m || !m.trim()) return;
-            try {
-                const signal = specificToken ? null : (abC ? abC.signal : null);
-                await oF(`https://kick.com/api/v2/messages/send/${cRI.id}`, {
-                    method: 'POST',
-                    headers: { accept: 'application/json', 'content-type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ content: m, type: 'message' }),
-                    signal: signal 
-                });
-            } catch (e) {}
-        }
-
-        function sCP() {
-            if (sP.active) {
-                sP.active = false;
-                if (abC) { abC.abort(); abC = null; }
-                if (typeof sP.cleanup === 'function') sP.cleanup();
-                
-                // If not stopping bots as well, don't necessarily kill monitor yet
-                // But generally safe to stop unless bot check handles it
-                const botBtn = document.getElementById('mass-start-btn');
-                if(!botBtn || botBtn.dataset.running !== 'true') {
-                    stopStreamMonitor();
-                }
-            }
-        }
-
-        // --- MAIN TAB LOOP ---
-        async function sSP(ln, cy, dl) {
-            if (sP.active) { sCP(); return; }
-            const b = document.getElementById('jutsu-toggle-btn');
-            const c = document.getElementById('jutsu-counter');
-            if (!b) return;
-
-            // Start Monitor if checkbox checked
-            const autoStopChecked = document.getElementById('auto-stop-check')?.checked;
-            if(autoStopChecked) startStreamMonitor();
-
-            abC = new AbortController();
-            const isSpamMode = document.getElementById('spam-mode-check').checked;
-            let finalDelay = isSpamMode ? 1 : dl * 1000; 
-
-            sP.active = true;
-            sP.cleanup = () => {
-                b.textContent = gT('start');
-                b.classList.remove('active');
-                b.style.background = '#53FC18'; b.style.color = '#000';
-                c.style.display = 'none'; sP.active = false
-            };
-            
-            b.textContent = gT('stop');
-            b.classList.add('active');
-            b.style.background = '#32353A'; b.style.color = '#fff';
-            c.style.display = 'block';
-            
-            const tM = ln.length * cy;
-            let sF = 0;
-            for (let i = 0; i < cy; i++) {
-                for (let j = 0; j < ln.length; j++) {
-                    if (!sP.active) break;
-                    const l = ln[j];
-                    c.innerText = `${sF+1} / ${tM===Infinity?'∞':tM}`;
-                    if (isSpamMode) { sM(l); if (j % 10 === 0) await new Promise(r => setTimeout(r, 0)); } else { await sM(l); }
-                    sF++;
-                    if (finalDelay > 0 && sP.active) await new Promise(r => setTimeout(r, finalDelay));
-                }
-                if (!sP.active) break;
-            }
-            if (sP.active) sCP();
-        }
-
-        // --- MULTI ACCOUNT LOOP ---
-        async function runBotAccount(accId) {
-            const acc = accList.find(a => a.id === accId);
-            if (!acc || !acc.config) return;
-            
-            const controller = new AbortController();
-            activeBots[accId] = { active: true, controller: controller };
-            updateBotRowStatus(accId, true);
-
-            const msgs = (acc.config.messages || "").split('\n').filter(Boolean);
-            if (msgs.length === 0) { stopBotAccount(accId); return; }
-
-            const isInf = acc.config.infinite;
-            const count = isInf ? Infinity : (parseInt(acc.config.count) || 10);
-            const delay = parseInt(acc.config.delay) || 2;
-            const isSpam = acc.config.spam || false;
-            const finalDelay = isSpam ? 1 : delay * 1000;
-
-            try {
-                for (let i = 0; i < count; i++) {
-                    for (let j = 0; j < msgs.length; j++) {
-                        if (!activeBots[accId]?.active) break;
-                        if (controller.signal.aborted) break;
-
-                        const msg = msgs[j];
-                        await sM(msg, acc.token);
-                        
-                        if (finalDelay > 0 && activeBots[accId]?.active) {
-                            await new Promise(resolve => setTimeout(resolve, finalDelay));
-                        }
-                    }
-                    if (!activeBots[accId]?.active) break;
-                }
-            } catch (e) {}
-            
-            stopBotAccount(accId);
-            // Check if all bots stopped, then stop monitor if main is also off
-            if(Object.keys(activeBots).length === 0 && !sP.active) stopStreamMonitor();
-        }
-
-        function stopBotAccount(accId) {
-            if (activeBots[accId]) {
-                activeBots[accId].active = false;
-                activeBots[accId].controller.abort();
-                delete activeBots[accId];
-            }
-            updateBotRowStatus(accId, false);
-        }
-
-        function updateBotRowStatus(accId, isRunning) {
-            const statusEl = document.getElementById(`bot-status-${accId}`);
-            if (statusEl) {
-                statusEl.textContent = isRunning ? gT('statusRunning') : gT('statusStopped');
-                statusEl.style.color = isRunning ? '#53FC18' : '#6b7280';
-            }
-        }
-
-        function toggleMassBots() {
-            const btn = document.getElementById('mass-start-btn');
-            const isRunning = btn.dataset.running === 'true';
-            
-            if (isRunning) {
-                Object.keys(activeBots).forEach(id => stopBotAccount(parseInt(id)));
-                btn.dataset.running = 'false';
-                btn.textContent = gT('startSelected');
-                btn.classList.remove('danger');
-                btn.classList.add('primary');
-                if (!sP.active) stopStreamMonitor();
-            } else {
-                const checkboxes = document.querySelectorAll('.bot-select-chk:checked');
-                if (checkboxes.length === 0) return;
-                
-                // Start Monitor if Checkbox checked
-                const autoStopChecked = document.getElementById('auto-stop-check')?.checked;
-                if(autoStopChecked) startStreamMonitor();
-
-                checkboxes.forEach(chk => {
-                    const id = parseInt(chk.dataset.id);
-                    runBotAccount(id);
-                });
-                
-                btn.dataset.running = 'true';
-                btn.textContent = gT('stopSelected');
-                btn.classList.remove('primary');
-                btn.classList.add('danger');
-            }
-        }
-
-        function cM(c, i = false) {
-            const o = document.createElement('div');
-            o.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(11,14,15,0.7);z-index:100000;opacity:0;transition:opacity .2s ease;display:flex;align-items:center;justify-content:center;';
-            o.dir = cL === 'ar' ? 'rtl' : 'ltr';
-            const m = document.createElement('div');
-            m.className = 'kick-official-modal';
-            m.style.cssText = `animation:fadeInUp .2s ease-out; width:90%; max-width:${i?'320px':'400px'}; padding:24px; background:#191B1F; border:1px solid #2D3035; border-radius:8px; display:flex; flex-direction:column;`;
-            m.innerHTML = c;
-            o.appendChild(m); document.body.appendChild(o);
-            setTimeout(() => o.style.opacity = '1', 10);
-            return { overlay: o, modal: m }
-        }
-
-        function sLSM() {
-            const c = `<h4 style='text-align:center;color:#fff;margin:0 0 20px 0;font-size:14px;font-weight:600;text-transform:uppercase;'>Select Language</h4><div style='display:flex;gap:12px;'><button id='lang-select-en' class='kick-ui-btn secondary'>English</button><button id='lang-select-ar' class='kick-ui-btn secondary'>العربية</button></div>`;
-            const { overlay: o } = cM(c, true);
-            const s = l => { 
-                cL = l; 
-                localStorage.setItem('kickToolsLang', cL); 
-                uUT(); 
-                rSS(); 
-                renderAccountsList();
-                o.remove(); 
-                setTimeout(() => checkAndShowChangelog(false), 500); 
-                tSP(); 
-            };
-            document.getElementById('lang-select-en').onclick = () => s('en');
-            document.getElementById('lang-select-ar').onclick = () => s('ar');
-        }
-
-        function sSSM() {
-            const c = `<h4 style='text-align:left;color:#fff;margin:0 0 15px 0;font-size:16px;font-weight:700;'>${gT('saveCurrentScroll')}</h4><input type='text' id='scroll-name-input' class='kick-ui-input' style="margin-bottom:20px;" placeholder=''><div style="display:flex; justify-content:flex-end; gap:8px;"><button id='cancel-save-btn' class='kick-ui-btn secondary' style='width:auto;' data-lang-key='close'></button><button id='confirm-save-btn' class='kick-ui-btn primary' style='width:auto;' data-lang-key='saveScrollBtn'></button></div>`;
-            const { overlay: o } = cM(c, true);
-            const nI = document.getElementById('scroll-name-input');
-            uUT(); nI.focus();
-            const cMdl = () => { o.style.opacity = '0'; setTimeout(() => o.remove(), 200) };
-            document.getElementById('cancel-save-btn').onclick = cMdl;
-            document.getElementById('confirm-save-btn').onclick = () => {
-                const n = nI.value;
-                if (!n || !n.trim()) { nI.style.borderColor = '#D93025'; return }
-                const s = {
-                    name: n,
-                    messages: document.getElementById('main-message-input').value,
-                    count: document.getElementById('message-count-input').value,
-                    delay: document.getElementById('message-delay-input').value,
-                    infinite: document.getElementById('infinite-send-check').checked
-                };
-                sS.push(s); localStorage.setItem('kickNarutoScrolls', JSON.stringify(sS)); rSS();
-                sKN(gT('scrollSavedSuccess', { name: n })); cMdl()
-            };
-            o.onclick = e => { if (e.target === o) cMdl() }
-        }
-
-        // --- ACCOUNT MANAGER MODALS ---
-        function showAddAccountModal() {
-            const c = `
-                <h4 style='color:#fff;margin:0 0 15px 0;font-size:16px;font-weight:700;'>${gT('addAccountBtn')}</h4>
-                <div class='kick-input-group'>
-                    <label class='kick-label'>${gT('nameCol')}</label>
-                    <input type='text' id='new-acc-name' class='kick-ui-input' placeholder='${gT('accNamePlace')}'>
-                </div>
-                <div class='kick-input-group'>
-                    <label class='kick-label'>Token</label>
-                    <input type='text' id='new-acc-token' class='kick-ui-input' placeholder='${gT('accTokenPlace')}'>
-                </div>
-                <div style="display:flex; justify-content:flex-end; gap:8px;">
-                    <button id='cancel-acc-btn' class='kick-ui-btn secondary' style='width:auto;'>${gT('close')}</button>
-                    <button id='save-acc-btn' class='kick-ui-btn primary' style='width:auto;'>${gT('saveScrollBtn')}</button>
-                </div>
-            `;
-            const { overlay: o } = cM(c, true);
-            
-            document.getElementById('cancel-acc-btn').onclick = () => { o.remove(); };
-            document.getElementById('save-acc-btn').onclick = () => {
-                const name = document.getElementById('new-acc-name').value;
-                const token = document.getElementById('new-acc-token').value;
-                if(!name || !token) return;
-                
-                accList.push({
-                    id: Date.now(),
-                    name: name,
-                    token: token,
-                    config: { messages: '', count: 10, delay: 2, infinite: false, spam: false }
-                });
-                localStorage.setItem('kickMultiAccounts', JSON.stringify(accList));
-                renderAccountsList();
-                sKN(gT('accAddedHint')); // Show hint toast
-                o.remove();
-            };
-        }
-
-        function showHowToUseModal() {
-            const c = `
-                <h4 style='color:#fff;margin:0 0 15px 0;font-size:16px;font-weight:700;'>${gT('howToUseTitle')}</h4>
-                <div style='color:#ccc;font-size:13px;line-height:1.6;background:#24272C;padding:12px;border-radius:6px;max-height:300px;overflow-y:auto;'>
-                    ${gT('howToUseBody')}
-                </div>
-                <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-                    <button id='close-how-btn' class='kick-ui-btn primary' style='width:auto;'>${gT('gotIt')}</button>
-                </div>
-            `;
-            const { overlay: o } = cM(c, true);
-            document.getElementById('close-how-btn').onclick = () => o.remove();
-        }
-
-        function showBotConfigModal(accId) {
-            const acc = accList.find(a => a.id === accId);
-            if(!acc) return;
-            
-            if(!acc.config) acc.config = { messages: '', count: 10, delay: 2, infinite: false, spam: false };
-
-            const c = `
-                <h4 style='color:#fff;margin:0 0 15px 0;font-size:16px;font-weight:700;'>${gT('accSetupTitle', {name: acc.name})}</h4>
-                
-                <div class='kick-input-group'>
-                    <label class='kick-label'>${gT('enterMessageLabel')}</label>
-                    <textarea id='bot-msg-input' class='kick-ui-input' style='height:100px;'>${acc.config.messages}</textarea>
-                </div>
-
-                <div style='display:flex; gap:12px; margin-bottom:16px;'>
-                    <div style='flex:1;'>
-                        <label class='kick-label'>${gT('countLabel')}</label>
-                        <input id='bot-count-input' type='number' class='kick-ui-input' value='${acc.config.count}'>
-                    </div>
-                    <div style='flex:1;'>
-                        <label class='kick-label'>${gT('delayLabel')} (s)</label>
-                        <input id='bot-delay-input' type='number' class='kick-ui-input' value='${acc.config.delay}'>
-                    </div>
-                </div>
-
-                <label class="kick-checkbox-row" style="margin-bottom:16px;">
-                    <span class="kick-checkbox-label">∞ ${gT('infiniteSendLabel')}</span>
-                    <input type='checkbox' id='bot-inf-check' ${acc.config.infinite ? 'checked' : ''}>
-                </label>
-
-                <div style="display:flex; justify-content:flex-end; gap:8px;">
-                    <button id='close-bot-conf' class='kick-ui-btn secondary' style='width:auto;'>${gT('close')}</button>
-                    <button id='save-bot-conf' class='kick-ui-btn primary' style='width:auto;'>${gT('accSaveConfig')}</button>
-                </div>
-            `;
-            const { overlay: o } = cM(c, true);
-
-            document.getElementById('close-bot-conf').onclick = () => o.remove();
-            document.getElementById('save-bot-conf').onclick = () => {
-                acc.config.messages = document.getElementById('bot-msg-input').value;
-                acc.config.count = document.getElementById('bot-count-input').value;
-                acc.config.delay = document.getElementById('bot-delay-input').value;
-                acc.config.infinite = document.getElementById('bot-inf-check').checked;
-                
-                localStorage.setItem('kickMultiAccounts', JSON.stringify(accList));
-                sKN(gT('scrollSavedSuccess', {name: acc.name}));
-                o.remove();
-            };
-        }
-
-        function sCDM(n) {
-            return new Promise(r => {
-                const c = `<h4 style='color:#fff;margin:0 0 10px 0;font-size:16px;font-weight:700;'>${gT('confirmDeletion')}</h4><p style='color:#A8A8A8;font-size:13px;margin:0 0 20px 0;'>${gT('confirmDeleteMsg',{name:n})}</p><div style='display:flex;justify-content:flex-end;gap:10px;'><button id='confirm-delete-no' class='kick-ui-btn secondary' style='width:auto;' data-lang-key='no'></button><button id='confirm-delete-yes' class='kick-ui-btn danger' style='width:auto;' data-lang-key='yes'></button></div>`;
-                const { overlay: o } = cM(c); uUT();
-                const cMdl = v => { o.style.opacity = '0'; setTimeout(() => o.remove(), 200); r(v) };
-                document.getElementById('confirm-delete-yes').onclick = () => cMdl(true);
-                document.getElementById('confirm-delete-no').onclick = () => cMdl(false);
-                o.onclick = e => { if (e.target === o) cMdl(false) }
-            })
-        }
-
-        function lS(i) {
-            const s = sS[i];
-            if (!s) return;
-            document.getElementById('main-message-input').value = s.messages;
-            document.getElementById('message-count-input').value = s.count;
-            document.getElementById('message-delay-input').value = s.delay;
-            document.getElementById('infinite-send-check').checked = s.infinite;
-            const tmCk = document.getElementById('spam-mode-check');
-            if (tmCk) { tmCk.checked = false; tmCk.dispatchEvent(new Event('change')); }
-            const iC = document.getElementById('infinite-send-check');
-            if (iC) iC.dispatchEvent(new Event('change'));
-            sKN(gT('scrollLoaded', { name: s.name })); tSP();
-        }
-
-        async function dS(i) {
-            const s = sS[i];
-            if (!s) return;
-            const c = await sCDM(s.name);
-            if (c) { sS.splice(i, 1); localStorage.setItem('kickNarutoScrolls', JSON.stringify(sS)); rSS() }
-        }
-
-        function rSS() {
-            const c = document.getElementById('saved-scrolls-list');
-            if (!c) return;
-            c.innerHTML = '';
-            if (sS.length === 0) { c.innerHTML = `<div style='padding:20px;text-align:center;color:#696C75;font-size:13px;'>${gT('noSavedScrolls')}</div>`; return; }
-            sS.forEach((s, i) => {
-                const d = document.createElement('div');
-                d.className = 'saved-preset-row';
-                d.innerHTML = `<span class="preset-name">${s.name}</span><div class="preset-actions"><button data-load-idx='${i}' class='preset-btn load' title='Load'>${gT('load')}</button><button data-del-idx='${i}' class='preset-btn del' title='Delete'>✕</button></div>`;
-                c.appendChild(d);
-            });
-            uUT();
-        }
-
-        function renderAccountsList() {
-            const c = document.getElementById('accounts-list-container');
-            if(!c) return;
-            c.innerHTML = '';
-            
-            if(accList.length === 0) {
-                c.innerHTML = `<div style='padding:20px;text-align:center;color:#696C75;font-size:13px;'>${gT('noAccounts')}</div>`;
-                return;
-            }
-
-            const h = document.createElement('div');
-            h.style.cssText = 'display:flex; padding:8px; border-bottom:1px solid #2D3035; color:#A8A8A8; font-size:11px; font-weight:700; text-transform:uppercase;';
-            h.innerHTML = `
-                <div style="width:30px; text-align:center;">${gT('selectCol')}</div>
-                <div style="flex:1; padding:0 8px;">${gT('nameCol')}</div>
-                <div style="width:80px; text-align:center;">${gT('actionsCol')}</div>
-            `;
-            c.appendChild(h);
-
-            accList.forEach(acc => {
-                const row = document.createElement('div');
-                row.className = 'saved-preset-row';
-                row.style.marginBottom = '4px';
-                row.innerHTML = `
-                    <div style="width:30px; text-align:center;">
-                        <input type="checkbox" class="bot-select-chk" data-id="${acc.id}" style="accent-color:var(--k-green);">
-                    </div>
-                    <div style="flex:1; padding:0 8px; overflow:hidden;">
-                        <div class="preset-name" style="font-size:13px; color:#fff;">${acc.name}</div>
-                        <div id="bot-status-${acc.id}" style="font-size:10px; color:#6b7280;">${gT('statusStopped')}</div>
-                    </div>
-                    <div class="preset-actions">
-                        <button class="preset-btn load" onclick="window.editBot(${acc.id})" title="Config">
-                            <!-- Pen Icon -->
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        </button>
-                        <button class="preset-btn del" onclick="window.delBot(${acc.id})" title="Delete">✕</button>
-                    </div>
-                `;
-                c.appendChild(row);
-            });
-        }
-
-        window.editBot = (id) => showBotConfigModal(id);
-        window.delBot = async (id) => {
-            const acc = accList.find(a => a.id === id);
-            if(await sCDM(acc.name)) {
-                accList = accList.filter(a => a.id !== id);
-                localStorage.setItem('kickMultiAccounts', JSON.stringify(accList));
-                renderAccountsList();
-            }
-        };
-
-        function cPW_UI() {
-            const fL = document.createElement('link'); fL.href = TA.font_url; fL.rel = 'stylesheet'; document.head.appendChild(fL);
-            const uS = `
-            :root { --k-green: #53FC18; --k-bg: #191B1F; --k-surface: #24272C; --k-border: #2D3035; --k-text: #FFFFFF; --k-text-dim: #A8A8A8; --k-danger: #D93025; --k-font: 'Inter', sans-serif; }
-            @keyframes fadeInUp { from {opacity:0;transform:translateY(8px)} to {opacity:1;transform:translateY(0)} }
-            .kick-ui-panel { position: fixed; top: 50%; left: 50%; width: 420px; max-width: 95vw; background: #0B0E0F; border: 1px solid var(--k-border); border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,0.6); z-index: 9999; display: none; flex-direction: column; font-family: var(--k-font); color: var(--k-text); opacity: 0; transform: translate(-50%,-50%) scale(0.98); transition: opacity 0.2s, transform 0.2s; overflow: hidden; }
-            .panel-header { display: flex; align-items: center; border-bottom: 1px solid var(--k-border); }
-            .panel-tab { flex: 1; padding: 14px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--k-text-dim); background: transparent; border: none; border-bottom: 2px solid transparent; transition: all 0.2s; }
-            .panel-tab.active { color: var(--k-text); border-bottom-color: var(--k-green); background: rgba(255,255,255,0.02); }
-            .panel-tab:hover:not(.active) { color: #fff; }
-            .panel-body { padding: 20px; background: #0B0E0F; min-height: 340px; }
-            .kick-input-group { margin-bottom: 16px; }
-            .kick-label { display: block; font-size: 11px; font-weight: 700; color: var(--k-text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-            .kick-ui-input { width: 100%; background: #191B1F; border: 1px solid #45484F; border-radius: 4px; padding: 10px 12px; font-family: var(--k-font); font-size: 13px; color: var(--k-text); transition: border-color 0.2s, background 0.2s; }
-            .kick-ui-input:focus { border-color: var(--k-green); outline: none; background: #191B1F; }
-            .kick-ui-input:hover { background: #212429; border-color: #6B7280; }
-            textarea.kick-ui-input { resize: vertical; min-height: 80px; max-height: 180px; line-height: 1.5; }
-            .kick-checkbox-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #191B1F; border-radius: 6px; margin-bottom: 8px; border: 1px solid transparent; cursor: pointer; transition: 0.2s; }
-            .kick-checkbox-row:hover { border-color: #383B40; }
-            .kick-checkbox-row.checked { border-color: var(--k-green); background: rgba(83, 252, 24, 0.05); }
-            .kick-checkbox-label { font-size: 13px; font-weight: 600; }
-            input[type=checkbox] { accent-color: var(--k-green); width: 16px; height: 16px; }
-            .panel-footer { padding: 16px 20px; border-top: 1px solid var(--k-border); display: flex; gap: 10px; background: #14171A; align-items:center; }
-            .kick-ui-btn { width: 100%; padding: 10px 16px; border-radius: 4px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--k-font); text-transform: uppercase; transition: transform 0.1s, opacity 0.2s; display: flex; align-items: center; justify-content: center; }
-            .kick-ui-btn:active { transform: scale(0.98); }
-            .kick-ui-btn.primary { background: var(--k-green); color: #000; }
-            .kick-ui-btn.primary:hover { opacity: 0.9; }
-            .kick-ui-btn.secondary { background: #32353A; color: #fff; }
-            .kick-ui-btn.secondary:hover { background: #3F4248; }
-            .kick-ui-btn.danger { background: #D93025; color: #fff; }
-            .kick-ui-btn.danger:hover { opacity: 0.9; }
-            .kick-btn-loader { border: 2px solid rgba(0,0,0,0.1); border-left-color: #000; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; margin-right: 8px; }
-            @keyframes spin { 0% {transform:rotate(0deg)} 100% {transform:rotate(360deg)} }
-            .saved-preset-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #191B1F; border-radius: 4px; margin-bottom: 6px; border: 1px solid transparent; }
-            .saved-preset-row:hover { border-color: #383B40; }
-            .preset-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-            .preset-actions { display: flex; gap: 8px; }
-            .preset-btn { background: #2F3237; border: none; color: #A8A8A8; border-radius: 3px; cursor: pointer; padding: 4px 8px; font-size: 11px; font-weight: 600; transition:0.2s; }
-            .preset-btn:hover { color: #fff; background: #3F4248; }
-            .preset-btn.load { color: var(--k-green); background: rgba(83,252,24,0.1); }
-            .preset-btn.load:hover { background: var(--k-green); color: #000; }
-            .preset-btn.del:hover { background: #D93025; }
-            .kick-widget-pill { display: flex; align-items: center; padding: 5px; background: #0B0E0F; border: 1px solid var(--k-border); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-            .tab-content { display: none; }
-            .tab-content.active { display: block; animation: fadeInUp 0.2s; }
-            
-            #ai-chat-interface { display:flex; flex-direction:column; height:300px; }
-            #ai-chat-history { flex:1; background:#14171A; border:1px solid #2D3035; border-radius:4px; margin-bottom:12px; padding:12px; overflow-y:auto; display:flex; flex-direction:column; }
-            #ai-chat-input-row { display:flex; gap:8px; }
-            `;
-            const sS = document.createElement('style'); sS.type = 'text/css'; sS.innerText = uS; document.head.appendChild(sS);
-            
-            const ui = document.createElement('div');
-            ui.id = 'kick-tools-ui';
-            ui.className = 'kick-ui-panel';
-            ui.innerHTML = `
-                <div class='panel-header'>
-                    <button class='panel-tab active' data-tab='interaction' data-lang-key='interactionTab'></button>
-                    <button class='panel-tab' data-tab='scrolls' data-lang-key='scrollsTab'></button>
-                    <button class='panel-tab' data-tab='ai' data-lang-key='aiTab' style='color:#a78bfa;'></button>
-                    <button class='panel-tab' data-tab='accounts' data-lang-key='accountsTab'></button>
-                </div>
-                
-                <div class='panel-body'>
-                    <!-- TAB 1: INTERACTION -->
-                    <div id='tab-interaction' class='tab-content active'>
-                        <div class='kick-input-group'>
-                            <label class='kick-label'><span data-lang-key='enterMessageLabel'></span><span style='font-weight:400; color:#6b7280; margin-inline-start:4px;' data-lang-key='enterMessageHint'></span></label>
-                            <textarea id='main-message-input' class='kick-ui-input' spellcheck='false'></textarea>
-                        </div>
-                        <div style='display:flex; gap:12px; margin-bottom:16px;'>
-                            <div id='message-count-group' style='flex:1; transition:all 0.2s;'>
-                                <label class='kick-label' data-lang-key='countLabel'></label>
-                                <input id='message-count-input' type='number' class='kick-ui-input' value='20'>
-                            </div>
-                            <div id='message-delay-group' style='flex:1;'>
-                                <label class='kick-label'><span data-lang-key='delayLabel'></span> <span id='unit-display' style='color:var(--k-green); opacity:0.8; font-size:10px;'>s</span></label>
-                                <input id='message-delay-input' type='number' class='kick-ui-input' value='2'>
-                            </div>
-                        </div>
-                        <label class="kick-checkbox-row" id="spam-row"><span class="kick-checkbox-label"><span style="color:var(--k-danger); margin-inline-end:6px;">⚡</span><span data-lang-key='spamModeLabel'></span></span><input type='checkbox' id='spam-mode-check'></label>
-                        <label class="kick-checkbox-row" id="inf-row"><span class="kick-checkbox-label"><span style="color:var(--k-text-dim); margin-inline-end:6px;">∞</span><span data-lang-key='infiniteSendLabel'></span></span><input type='checkbox' id='infinite-send-check'></label>
-                        <label class="kick-checkbox-row" id="autostop-row"><span class="kick-checkbox-label"><span style="margin-inline-end:6px;">🛑</span><span data-lang-key='autoStopLabel'></span></span><input type='checkbox' id='auto-stop-check'></label>
-                    </div>
-
-                    <!-- TAB 2: SCROLLS -->
-                    <div id='tab-scrolls' class='tab-content'>
-                        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--k-border);'>
-                            <span class="kick-label" style="margin:0;" data-lang-key="savedScrollsTitle"></span>
-                            <button id='save-scroll-btn' style="background:transparent; border:none; color:var(--k-green); font-size:11px; font-weight:700; cursor:pointer; text-transform:uppercase;" data-lang-key='save'></button>
-                        </div>
-                        <div id='saved-scrolls-list' style='max-height:300px; overflow-y:auto; padding-right:4px;'></div>
-                    </div>
-
-                    <!-- TAB 3: AI CHAT -->
-                    <div id='tab-ai' class='tab-content'>
-                        <div id="ai-chat-interface">
-                            <div id="ai-chat-history"></div>
-                            <div id="ai-chat-input-row">
-                                <input type="text" id="ai-user-input" class="kick-ui-input" style="flex:1;" data-lang-placeholder="aiChatPlaceholder">
-                                <button id="ai-send-btn" class="kick-ui-btn" style="background:#7c3aed; color:#fff; width:auto; min-width:80px;"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 4: ACCOUNTS -->
-                    <div id='tab-accounts' class='tab-content'>
-                        <div style="display:flex; gap:8px; margin-bottom:16px;">
-                            <button id="copy-token-btn" class="kick-ui-btn secondary" style="flex:1; border:1px dashed #383B40;">
-                                <span style="margin-right:6px;">📋</span> <span data-lang-key="copyCurrentToken"></span>
-                            </button>
-                            <button id="how-to-use-btn" class="kick-ui-btn secondary" style="width:auto; border:1px solid #383B40;" title="Help">
-                                <span>❓</span>
-                            </button>
-                        </div>
-                        
-                        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--k-border);'>
-                            <span class="kick-label" style="margin:0;" data-lang-key="accountsTab"></span>
-                            <button id='add-acc-btn' style="background:transparent; border:none; color:var(--k-green); font-size:11px; font-weight:700; cursor:pointer; text-transform:uppercase;" data-lang-key='addAccountBtn'></button>
-                        </div>
-                        
-                        <div id='accounts-list-container' style='max-height:200px; overflow-y:auto; margin-bottom:16px;'></div>
-                        
-                        <button id="mass-start-btn" class="kick-ui-btn primary" data-lang-key="startSelected"></button>
-                    </div>
-                </div>
-
-                <div class='panel-footer'>
-                    <button id='lang-switch-btn' class='kick-ui-btn secondary' style='width:auto; margin-inline-end:auto;' data-lang-key='languageToggle'></button>
-                    <button id='whats-new-btn' class='kick-ui-btn secondary' style='width:auto; padding:0 12px; margin-right:8px;' title='Info'>?</button>
-                    <button id='panel-close-btn' class='kick-ui-btn secondary' style='width:auto;' data-lang-key='close'></button>
-                </div>
-            `;
-            document.body.appendChild(ui);
-            sEL(ui);
-            if (cL) {
-                 uUT(); 
-                 setTimeout(() => checkAndShowChangelog(false), 1000); 
-            }
-            uL();
-            rSS();
-            renderAccountsList();
-        }
-
-        function uUT() {
-            document.querySelectorAll('[data-lang-key]').forEach(el => {
-                const k = el.dataset.langKey;
-                if (k) {
-                    if (el.id === 'jutsu-toggle-btn') {
-                         const key = sP.active ? 'stop' : 'start';
-                         el.textContent = gT(key);
-                    } else {
-                        el.textContent = gT(k);
-                    }
-                }
-            });
-            const nI = document.getElementById('scroll-name-input');
-            if (nI) nI.placeholder = gT('enterNamePlaceholder');
-            const aiIn = document.getElementById('ai-user-input');
-            if (aiIn) aiIn.placeholder = gT('aiChatPlaceholder');
-            const wnBtn = document.getElementById('whats-new-btn');
-            if(wnBtn) wnBtn.title = gT('whatsNewBtn');
-
-            const ui = document.getElementById('kick-tools-ui');
-            if (ui) ui.dir = cL === 'ar' ? 'rtl' : 'ltr';
-
-            const chk = document.getElementById('spam-mode-check');
-            const ud = document.getElementById('unit-display');
-            if(chk && ud) ud.textContent = chk.checked ? gT('unitMs') : gT('unitSec');
-        }
-
-        function uL() {
-            const isSpam = document.getElementById('spam-mode-check').checked;
-            const isInf = document.getElementById('infinite-send-check').checked;
-            const isAutoStop = document.getElementById('auto-stop-check').checked;
-            
-            document.getElementById('spam-row').classList.toggle('checked', isSpam);
-            document.getElementById('inf-row').classList.toggle('checked', isInf);
-            document.getElementById('autostop-row').classList.toggle('checked', isAutoStop);
-            
-            const countGroup = document.getElementById('message-count-group');
-            const delayGroup = document.getElementById('message-delay-group');
-            const delayInput = document.getElementById('message-delay-input');
-            if (isSpam && isInf) {
-               delayGroup.style.display = 'none';
-               countGroup.style.opacity = '0.3'; countGroup.style.pointerEvents = 'none';
-            } else {
-               if(isSpam) { delayGroup.style.display = 'none'; delayInput.value = 1; } 
-               else { delayGroup.style.display = 'block'; }
-               if(isInf) { countGroup.style.opacity = '0.3'; countGroup.style.pointerEvents = 'none'; } 
-               else { countGroup.style.opacity = '1'; countGroup.style.pointerEvents = 'auto'; }
-            }
-        }
-
-        function sEL(ui) {
-            ui.querySelector('.panel-header').addEventListener('click', e => {
-                if (!e.target.matches('.panel-tab')) return;
-                const t = e.target.dataset.tab;
-                ui.querySelector('.panel-tab.active').classList.remove('active');
-                e.target.classList.add('active');
-                ui.querySelector('.tab-content.active').classList.remove('active');
-                ui.querySelector(`#tab-${t}`).classList.add('active');
-                if(t === 'ai') setTimeout(() => document.getElementById('ai-user-input')?.focus(), 100);
-            });
-            document.getElementById('panel-close-btn')?.addEventListener('click', tSP);
-            document.getElementById('save-scroll-btn')?.addEventListener('click', sSSM);
-            document.getElementById('lang-switch-btn')?.addEventListener('click', () => { sLSM() });
-            
-            // Account Manager Events
-            document.getElementById('add-acc-btn')?.addEventListener('click', showAddAccountModal);
-            document.getElementById('how-to-use-btn')?.addEventListener('click', showHowToUseModal);
-            document.getElementById('copy-token-btn')?.addEventListener('click', () => {
-                if(window.bearerTokenGlobal) {
-                    navigator.clipboard.writeText(window.bearerTokenGlobal);
-                    sKN(gT('tokenCopied'));
-                } else {
-                    sKN(gT('tokenNotFound'));
-                }
-            });
-            document.getElementById('mass-start-btn')?.addEventListener('click', toggleMassBots);
-
-            // Show What's New Manually
-            document.getElementById('whats-new-btn')?.addEventListener('click', () => {
-                checkAndShowChangelog(true); 
-            });
-
-            const handleAIChat = async () => {
-                const inputEl = document.getElementById('ai-user-input');
-                const btn = document.getElementById('ai-send-btn');
-                const val = inputEl.value.trim();
-                if(!val) return;
-                addChatBubble(val, 'user');
-                inputEl.value = '';
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                addChatBubble(gT('aiTyping'), 'ai-loading');
-                const res = await fetchAIContent(val);
-                const history = document.getElementById('ai-chat-history');
-                history.lastChild.remove(); 
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                if(res.success) {
-                    if (res.isList) {
-                        const mainMsg = document.getElementById('main-message-input');
-                        const cur = mainMsg.value.trim();
-                        if (cur.length > 0) mainMsg.value = cur + '\n' + res.text;
-                        else mainMsg.value = res.text;
-                        document.getElementById('message-count-input').value = res.requestedCount;
-                        const replyMsg = gT('aiAdded', { count: res.requestedCount });
-                        addChatBubble(replyMsg, 'ai');
-                    } else {
-                        addChatBubble(res.text, 'ai');
-                    }
-                } else {
-                    addChatBubble("⚠️ Connection Error. Try again.", 'ai');
-                }
-                inputEl.focus();
-            };
-
-            document.getElementById('ai-send-btn')?.addEventListener('click', handleAIChat);
-            document.getElementById('ai-user-input')?.addEventListener('keydown', (e) => {
-                if(e.key === 'Enter') handleAIChat();
-            });
-
-            document.getElementById('infinite-send-check')?.addEventListener('change', uL);
-            document.getElementById('spam-mode-check')?.addEventListener('change', e => { uL(); if (e.target.checked) sRWM(); uUT(); });
-            document.getElementById('auto-stop-check')?.addEventListener('change', uL); // Update styling for new checkbox
-            
-            document.getElementById('saved-scrolls-list')?.addEventListener('click', e => {
-                const t = e.target.closest('.preset-btn');
-                if (!t) return;
-                const l = t.dataset.loadIdx, d = t.dataset.delIdx;
-                if (l) lS(parseInt(l, 10)); if (d) dS(parseInt(d, 10))
-            })
-        }
-
-        function cPW() {
-            if (document.getElementById('kick-jutsu-widget')) return;
-            fCI(true);
-            const w = document.createElement('div');
-            w.id = 'kick-jutsu-widget';
-            w.className = 'kick-widget-pill';
-            w.style.cssText = `position:fixed;top:85px;left:20px;z-index:10001;animation:fadeInUp .3s;`;
-            const bT = cL ? gT('start') : 'START';
-            w.innerHTML = `
-                <button id='jutsu-toggle-btn' data-lang-key='start' style="background:#53FC18; color:#000; border:none; padding:8px 16px; border-radius:4px; font-family:'Inter',sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; cursor:pointer; transition:0.2s; white-space:nowrap;">${bT}</button>
-                <div style="width:1px; height:16px; background:#2D3035; margin:0 8px;"></div>
-                <button id='jutsu-settings-btn' style='background:transparent; border:none; color:#A8A8A8; cursor:pointer; padding:6px; display:flex; align-items:center; transition:0.2s;'><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 0 0-.59.22L2.8 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
-                <div id='jutsu-counter' style="display:none; margin-left:8px; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; background:#24272C; padding:4px 8px; border-radius:3px; color:#53FC18; min-width:40px; text-align:center;"></div>
-            `;
-            
-            document.body.appendChild(w);
-            document.getElementById('jutsu-settings-btn').onmouseover = function() { this.style.color = '#fff' };
-            document.getElementById('jutsu-settings-btn').onmouseout = function() { this.style.color = '#A8A8A8' };
-            document.getElementById('jutsu-settings-btn').onclick = () => { if (!localStorage.getItem('kickToolsLang')) sLSM(); else tSP(); };
-            
-            document.getElementById('jutsu-toggle-btn').onclick = async () => {
-                if (!cL) { sLSM(); return }
-                if (sP.active) { sCP(); return }
-                if (!window.bearerTokenGlobal) { sKN(gT('loginErr')); return }
-                if (!await fCI(true)) { sKN(gT('enterStreamFirst')); return }
-                
-                const mV = document.getElementById('main-message-input').value;
-                if (!mV.trim()) { sKN(gT('writeMessageHint')); document.getElementById('main-message-input').focus(); return }
-
-                const iI = document.getElementById('infinite-send-check').checked;
-                const cy = iI ? Infinity : parseInt(document.getElementById('message-count-input').value) || 100;
-                const dl = parseInt(document.getElementById('message-delay-input').value) || 2;
-                const ln = mV.split('\n').filter(Boolean);
-                sSP(ln, cy, dl)
-            };
-            
-            let dr = false, ox, oy;
-            const oS = e => { e.stopPropagation(); dr = true; w.style.cursor = 'grabbing'; const t = e.touches ? e.touches[0] : e; ox = t.clientX - w.getBoundingClientRect().left; oy = t.clientY - w.getBoundingClientRect().top }, oM = e => { if (dr) { e.preventDefault(); const t = e.touches ? e.touches[0] : e; w.style.left = `${t.clientX-ox}px`; w.style.top = `${t.clientY-oy}px` } }, oE = () => { dr = false; w.style.cursor = 'auto' };
-            w.addEventListener('mousedown', oS); w.addEventListener('touchstart', oS, { passive: false }); document.addEventListener('mousemove', oM); document.addEventListener('touchmove', oM, { passive: false }); document.addEventListener('mouseup', oE); document.addEventListener('touchend', oE)
-        }
-
-        function tSP() {
-            const ui = document.getElementById('kick-tools-ui');
-            if (!ui) return;
-            if (ui.style.display === 'flex') { ui.style.opacity = '0'; ui.style.transform = 'translate(-50%,-50%) scale(0.98)'; setTimeout(() => { ui.style.display = 'none' }, 200) } 
-            else { ui.style.display = 'flex'; setTimeout(() => { ui.style.opacity = '1'; ui.style.transform = 'translate(-50%,-50%) scale(1)'; if (cL) uUT(); }, 10) }
-        }
-
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { sCP(); cPW_UI(); cPW() }); else { sCP(); cPW_UI(); cPW() }
-        window.fetch = async function(...a) {
-            const r = await oF.apply(this, a);
-            try { const t = a[1]?.headers?.Authorization?.substring(7); if (t && t !== window.bearerTokenGlobal) window.bearerTokenGlobal = t } catch (e) {}
-            return r
-        }
-    } catch (e) { console.error('Error:', e) }
-})();
+  },
+  "permissions": {
+    "channelCreation": {
+      "requireAdmin": true,
+      "requireVerifiedBot": true,
+      "minBotAge": 86400000,
+      "allowedUsers": []
+    },
+    "channelDeletion": {
+      "requireAdmin": true,
+      "requireVerifiedBot": true,
+      "requireConfirmation": true,
+      "confirmationTimeout": 30000
+    },
+    "channelUpdate": {
+      "requireModerator": true,
+      "requireVerifiedBot": true,
+      "allowedSettings": [
+        "name",
+        "description",
+        "topic",
+        "nsfw",
+        "slowmode",
+        "permissions"
+      ]
+    }
+  },
+  "verification": {
+    "botAccountCheck": {
+      "enabled": true,
+      "checkBotFlag": true,
+      "validateToken": true,
+      "checkWebhooks": true
+    },
+    "permissions": {
+      "sendMessages": true,
+      "manageChannels": true,
+      "manageMessages": true,
+      "manageRoles": true,
+      "viewAuditLog": true
+    },
+    "rateLimit": {
+      "enabled": true,
+      "maxRequestsPerSecond": 10,
+      "maxRequestsPerMinute": 300,
+      "cooldownPeriod": 1000
+    }
+  },
+  "errorHandling": {
+    "invalidBotAccount": {
+      "code": "BOT_VERIFICATION_FAILED",
+      "message": "The provided account is not a verified bot account",
+      "severity": "ERROR"
+    },
+    "insufficientPermissions": {
+      "code": "INSUFFICIENT_PERMISSIONS",
+      "message": "The bot does not have sufficient permissions to perform this action",
+      "severity": "ERROR"
+    },
+    "channelAlreadyExists": {
+      "code": "CHANNEL_ALREADY_EXISTS",
+      "message": "A channel with this name already exists",
+      "severity": "WARNING"
+    },
+    "channelNotFound": {
+      "code": "CHANNEL_NOT_FOUND",
+      "message": "The specified channel was not found",
+      "severity": "ERROR"
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "logLevel": "INFO",
+    "logChannelManagement": true,
+    "logBotVerification": true,
+    "logPermissionChecks": true,
+    "logFile": "logs/mod1.log"
+  },
+  "commands": {
+    "createChannel": {
+      "name": "!createchannel",
+      "description": "Create a new managed channel",
+      "syntax": "!createchannel <name> [description]",
+      "requireBotVerification": true,
+      "requireAdminRole": true
+    },
+    "deleteChannel": {
+      "name": "!deletechannel",
+      "description": "Delete a managed channel",
+      "syntax": "!deletechannel <channelId>",
+      "requireBotVerification": true,
+      "requireAdminRole": true
+    },
+    "updateChannel": {
+      "name": "!updatechannel",
+      "description": "Update channel settings",
+      "syntax": "!updatechannel <channelId> <setting> <value>",
+      "requireBotVerification": true,
+      "requireModeratorRole": true
+    },
+    "verifyBot": {
+      "name": "!verifybot",
+      "description": "Verify bot account status",
+      "syntax": "!verifybot [botId]",
+      "requireBotVerification": true
+    }
+  }
+}
