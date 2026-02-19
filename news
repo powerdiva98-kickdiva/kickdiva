@@ -1,5 +1,19 @@
-[
 {
-"news":"مرحبا هنا سأكتب لكم اخر الاخبار لا يوجد جديد الأن 😊"
+  "config": {
+    "version": "2.3.1",
+    "min_version": "2.0.0",
+    "maintenance": {
+      "enabled": true,
+      "title": "وضع الإصلاح",
+      "message": "التطبيق تحت الصيانة حالياً"
+    },
+    "session": {
+      "max_time_seconds": 3600,
+      "kick_after_expire": true
+    },
+    "update": {
+      "force": false,
+      "url": "kick.com"
+    }
+  }
 }
-]
